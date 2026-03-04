@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Versioned hook: run commit-check before allowing commit.
+python scripts/wf.py commit-check
+exit $?
