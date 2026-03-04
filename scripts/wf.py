@@ -1,15 +1,32 @@
 #!/usr/bin/env python3
 """
-Workflow CLI. Subcommand: reviewer — append reviewer evidence to workflow/EVIDENCE.jsonl (B6 staged diff).
+Workflow CLI. Subcommands: reviewer (append evidence), route (deterministic target + prompt).
 Stdlib only.
 """
 import argparse
 import hashlib
 import json
+import re
 import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
+
+ROUTE_TARGETS = frozenset({"cursor", "gpt", "new_chat"})
+
+
+def validate_route_output(obj: dict) -> bool:
+    """Validate route output schema: target, reason (list of str), prompt (str)."""
+    if not isinstance(obj, dict):
+        return False
+    if obj.get("target") not in ROUTE_TARGETS:
+        return False
+    reason = obj.get("reason")
+    if not isinstance(reason, list) or not all(isinstance(r, str) for r in reason):
+        return False
+    if not isinstance(obj.get("prompt"), str):
+        return False
+    return True
 
 
 def repo_root() -> Path:
@@ -120,6 +137,104 @@ def reviewer(args: argparse.Namespace, root: Path) -> int:
     return 0
 
 
+def _read_run_id_optional(root: Path) -> str | None:
+    """Return RUN_ID from SESSION_HEADER or None if missing/placeholder."""
+    header = root / "workflow" / "SESSION_HEADER.md"
+    if not header.exists():
+        return None
+    for line in header.read_text(encoding="utf-8").splitlines():
+        if line.strip().startswith("RUN_ID:"):
+            val = line.split("RUN_ID:", 1)[1].strip()
+            if val and val != "<run_id>":
+                return val
+    return None
+
+
+def _last_evidence_run_id(root: Path) -> str | None:
+    """Return run_id from last non-schema line in EVIDENCE.jsonl, or None."""
+    path = root / "workflow" / "EVIDENCE.jsonl"
+    if not path.exists():
+        return None
+    run_id = None
+    for line in path.read_text(encoding="utf-8").strip().splitlines():
+        if line.startswith("#"):
+            continue
+        try:
+            obj = json.loads(line)
+            if obj.get("_schema"):
+                continue
+            run_id = obj.get("run_id")
+        except (json.JSONDecodeError, TypeError):
+            continue
+    return run_id
+
+
+def _has_placeholders(content: str) -> bool:
+    """True if content contains placeholder-like <...> (angle brackets with non-empty inside)."""
+    return bool(re.search(r"<\s*[^>\s]+\s*>", content))
+
+
+def _task_queue_active_contains(root: Path, *words: str) -> bool:
+    """True if ACTIVE section in TASK_QUEUE contains any of the given words (case-insensitive)."""
+    path = root / "workflow" / "TASK_QUEUE.md"
+    if not path.exists():
+        return False
+    text = path.read_text(encoding="utf-8")
+    in_active = False
+    for line in text.splitlines():
+        if line.strip() == "ACTIVE":
+            in_active = True
+            continue
+        if in_active:
+            if line.strip() in ("NEXT", "DONE") or (line.strip().startswith("#")):
+                break
+            lower = line.lower()
+            if any(w in lower for w in words):
+                return True
+    return False
+
+
+def route(_args: argparse.Namespace, root: Path) -> int:
+    """Determine target (cursor/gpt/new_chat), reason, and prompt. Print single JSON to stdout."""
+    run_id = _read_run_id_optional(root)
+    diff_cached = run_git(["diff", "--cached"], root, text=False)
+    has_staged = len((diff_cached.stdout or b"").strip()) > 0
+    last_evidence_run_id = _last_evidence_run_id(root)
+
+    state_path = root / "workflow" / "STATE.md"
+    state_text = state_path.read_text(encoding="utf-8") if state_path.exists() else ""
+    task_queue_path = root / "workflow" / "TASK_QUEUE.md"
+    task_queue_text = task_queue_path.read_text(encoding="utf-8") if task_queue_path.exists() else ""
+
+    target: str
+    reason: list[str]
+    prompt: str
+
+    if _has_placeholders(state_text) or _has_placeholders(task_queue_text):
+        target = "cursor"
+        reason = ["STATE or TASK_QUEUE contains placeholders.", "Run bootstrap or fill placeholders before continuing."]
+        prompt = "Run bootstrap or fill placeholders: ensure workflow/STATE.md, workflow/SESSION_HEADER.md, and workflow/TASK_QUEUE.md have no <...> placeholders. Use scripts/bootstrap.py --project \"Your Project Name\" if this is a new repo from template."
+    elif has_staged and (run_id is None or last_evidence_run_id != run_id):
+        target = "gpt"
+        reason = ["Staged diff exists but no evidence entry for current RUN_ID.", "Reviewer step and evidence append required before commit."]
+        prompt = "Perform the reviewer steps: (1) Review the staged diff (git diff --cached). (2) Run verification commands (e.g. tests/lint). (3) Append one evidence entry to workflow/EVIDENCE.jsonl using: python scripts/wf.py reviewer --cmd \"<your check>\" (or set RUN_ID in workflow/SESSION_HEADER.md first). Do not commit until evidence is appended and all commands exit 0."
+    elif _task_queue_active_contains(root, "implement", "refactor", "fix"):
+        target = "cursor"
+        reason = ["ACTIVE task implies implementation work.", "Cursor should apply code/repo changes."]
+        prompt = "Implement the current ACTIVE task from workflow/TASK_QUEUE.md. Apply minimal diffs; only touch files needed for the task. Then update TASK_QUEUE (move to DONE if done) and STATE if milestone/task changed."
+    else:
+        target = "gpt"
+        reason = ["No staged-diff gap or implementation task detected.", "Propose next step and update workflow state as needed."]
+        prompt = "Propose the next step for this project. Read workflow/STATE.md and workflow/TASK_QUEUE.md. Suggest one concrete action (design, task, or implementation). If the next step is implementation, add it to ACTIVE in TASK_QUEUE and summarize for Cursor."
+
+    out = {"target": target, "reason": reason, "prompt": prompt}
+    if not validate_route_output(out):
+        print("route output schema validation failed", file=sys.stderr)
+        return 1
+    print(json.dumps(out, ensure_ascii=False))
+    return 0
+
+
 def main() -> int:
     root = repo_root()
     parser = argparse.ArgumentParser(prog="wf", description="Workflow CLI (reviewer evidence).")
@@ -129,6 +244,8 @@ def main() -> int:
     rev.add_argument("--run-id", metavar="ID", help="Run ID (else read from workflow/SESSION_HEADER.md).")
     rev.add_argument("--repo", metavar="NAME", help="Repo name (default: directory name).")
     rev.set_defaults(func=reviewer)
+    route_p = subparsers.add_parser("route", help="Print target (cursor/gpt/new_chat), reason, and prompt as JSON.")
+    route_p.set_defaults(func=route)
     args = parser.parse_args()
     return args.func(args, root)
 
