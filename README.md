@@ -16,6 +16,19 @@ This workflow provides a lightweight structure to maintain stable reasoning and 
 
 To start a new ChatGPT session with full context, follow **workflow/NEW_CHAT_PROMPT.md** (paste the listed files in order, then your message).
 
+## Quick start for new projects
+
+After creating a new repository from this template:
+
+```bash
+python scripts/bootstrap.py --project "Your Project Name"
+```
+
+This initializes placeholders in:
+- workflow/STATE.md
+- workflow/SESSION_HEADER.md
+- workflow/TASK_QUEUE.md
+
 ## Core Loop
 
 
