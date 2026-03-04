@@ -40,9 +40,7 @@ Roles:
 
 ## Repository Structure
 
-
-AI_WORKFLOW/
-│
+.
 ├── AI_WORKFLOW_MASTER.md
 ├── workflow/
 ├── artifacts/
@@ -50,15 +48,26 @@ AI_WORKFLOW/
 ├── README.md
 └── LICENSE
 
-
 ### workflow/
 
 Persistent AI workflow state. See `workflow/README.md` for file roles and update rules.
 
-- **PROJECT_CONTEXT.md** — Stable project context (anchor).
-- **SESSION_HEADER.md** — Runtime header used to start new ChatGPT sessions.
-- **DECISIONS_LOG.md** — Log of important architectural decisions.
-- **TASK_QUEUE.md** — Tracks active, next and completed tasks.
+Core runtime:
+- STATE.md
+- RULES.md
+- SESSION_HEADER.md
+- PROJECT_CONTEXT.md
+- TASK_QUEUE.md
+- DECISIONS_LOG.md
+
+Review helper:
+- VERIFY.md
+
+Session helpers:
+- NEW_CHAT_PROMPT.md
+- BOOTSTRAP_PROMPT.md
+- CONDUCTOR_PROMPT.md
+- RESUME_PACKET.md
 
 ### artifacts/
 

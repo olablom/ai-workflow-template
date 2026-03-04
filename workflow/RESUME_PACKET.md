@@ -24,20 +24,10 @@ INVARIANTS
 - no assumptions about prior sessions
 
 RECENT COMMITS
-3bde0b5 Add verification checklist to reviewer step
-0acb2a9 Record workflow validation decision
-09fe9a5 Add hello workflow CLI and run log
-946fa0a Set demo runtime state
-9f64c7b Initial commit
+<optional: last 3 commit messages or hashes for THIS project>
 
 FILES THAT MATTER NOW
-workflow/STATE.md
-workflow/TASK_QUEUE.md
-workflow/SESSION_HEADER.md
-workflow/DECISIONS_LOG.md
-workflow/VERIFY.md
-src/hello_workflow.py
-artifacts/run_log.txt
+<list only the relevant files for THIS project>
 
 NEXT STEP
 Propose next milestone or task; update TASK_QUEUE and STATE if needed.
