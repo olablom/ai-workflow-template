@@ -8,6 +8,10 @@ Two ways to resume without reading the whole repo:
 
 **B) One-page resume** — Paste **workflow/RESUME_PACKET.md** only. Update RECENT COMMITS and FILES THAT MATTER NOW before pasting. Then ask the model to propose the next step.
 
+## Stability upgrades
+- Reviewer step includes "State verification" (STATE/TASK_QUEUE/DECISIONS_LOG checks).
+- Purpose: prevent context drift across many iterations.
+
 ---
 
 Files:

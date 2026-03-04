@@ -17,6 +17,8 @@
 - Review all changes (diffs)
 - Confirm no unintended edits
 - Ensure STATE / DECISIONS_LOG / TASK_QUEUE are updated if the work touched them
+- Every code-changing commit must include a reviewer check that STATE.md and TASK_QUEUE.md are still accurate (update them only if they are wrong).
+- If an architectural decision was made, append it to DECISIONS_LOG.md (do not overwrite old entries).
 
 ## Invariants
 

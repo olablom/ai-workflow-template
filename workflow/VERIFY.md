@@ -2,6 +2,11 @@
 
 Checklist before committing changes:
 
+## State verification
+- STATE.md reflects the current milestone and task
+- TASK_QUEUE.md reflects what is actually being worked on
+- DECISIONS_LOG.md updated if architectural decisions were made
+
 1. Run:
    git status
 
