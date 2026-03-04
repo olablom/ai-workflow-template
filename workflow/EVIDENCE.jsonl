@@ -1,2 +1,2 @@
-# Required: ts, repo, run_id, step, commands[] (cmd, exit_code), git{} (branch, head, dirty, diff_stat). One JSON object per reviewer run.
-{"_schema":"ai-workflow-evidence.v1","note":"Append one JSON object per reviewer run. Keep it factual: commands + exit codes + git snapshot (branch/head/dirty/diff_stat)."}
+# Required: ts, repo, run_id, step, commands[] (cmd, exit_code), git{} (branch, head, dirty, diff_stat from "git diff --cached --stat", diff_sha256 from sha256 of "git diff --cached" when dirty). One JSON object per reviewer run. Staged evidence only.
+{"_schema":"ai-workflow-evidence.v1","note":"Append one JSON object per reviewer run. Staged evidence only. diff_stat = git diff --cached --stat; diff_sha256 = sha256(git diff --cached) when dirty. Keep it factual: commands + exit codes + git snapshot."}
