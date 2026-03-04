@@ -12,6 +12,10 @@ When using LLMs for development, three issues appear quickly:
 
 This workflow provides a lightweight structure to maintain stable reasoning and project continuity.
 
+## Quick Start
+
+To start a new ChatGPT session with full context, follow **workflow/NEW_CHAT_PROMPT.md** (paste the listed files in order, then your message).
+
 ## Core Loop
 
 
