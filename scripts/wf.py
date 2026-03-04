@@ -150,23 +150,27 @@ def _read_run_id_optional(root: Path) -> str | None:
     return None
 
 
-def _last_evidence_run_id(root: Path) -> str | None:
-    """Return run_id from last non-schema line in EVIDENCE.jsonl, or None."""
-    path = root / "workflow" / "EVIDENCE.jsonl"
+def _read_latest_evidence_entry(path: Path) -> dict | None:
+    """Return last valid evidence entry (skip # lines and _schema objects), or None."""
     if not path.exists():
         return None
-    run_id = None
+    latest = None
     for line in path.read_text(encoding="utf-8").strip().splitlines():
-        if line.startswith("#"):
+        if line.strip().startswith("#"):
             continue
         try:
             obj = json.loads(line)
-            if obj.get("_schema"):
-                continue
-            run_id = obj.get("run_id")
+            if isinstance(obj, dict) and not obj.get("_schema"):
+                latest = obj
         except (json.JSONDecodeError, TypeError):
             continue
-    return run_id
+    return latest
+
+
+def _last_evidence_run_id(root: Path) -> str | None:
+    """Return run_id from last non-schema line in EVIDENCE.jsonl, or None."""
+    entry = _read_latest_evidence_entry(root / "workflow" / "EVIDENCE.jsonl")
+    return entry.get("run_id") if entry else None
 
 
 def _has_placeholders(content: str) -> bool:
@@ -235,6 +239,48 @@ def route(_args: argparse.Namespace, root: Path) -> int:
     return 0
 
 
+def commit_check(_args: argparse.Namespace, root: Path) -> int:
+    """Require latest evidence to match staged diff when staged diff exists. Staged only (git diff --cached)."""
+    diff_cached = run_git(["diff", "--cached"], root, text=False)
+    diff_bytes = diff_cached.stdout or b""
+    if len(diff_bytes.strip()) == 0:
+        print("OK commit-check (no staged diff)")
+        return 0
+
+    evidence_path = root / "workflow" / "EVIDENCE.jsonl"
+    if not evidence_path.exists():
+        print("commit-check failed: no evidence entry found. Run: python scripts/wf.py reviewer --cmd \"<your check>\"", file=sys.stderr)
+        return 1
+    latest_entry = _read_latest_evidence_entry(evidence_path)
+    if not latest_entry:
+        print("commit-check failed: no evidence entry found. Run: python scripts/wf.py reviewer --cmd \"<your check>\"", file=sys.stderr)
+        return 1
+
+    git = latest_entry.get("git") or {}
+    if git.get("dirty") is not True:
+        print("commit-check failed: latest evidence git.dirty not true. Re-run reviewer for current staged diff.", file=sys.stderr)
+        return 1
+    if not git.get("diff_sha256"):
+        print("commit-check failed: latest evidence missing diff_sha256. Re-run reviewer for current staged diff.", file=sys.stderr)
+        return 1
+    current_sha = hashlib.sha256(diff_bytes).hexdigest()
+    if git.get("diff_sha256") != current_sha:
+        print("commit-check failed: diff_sha256 mismatch. Re-run reviewer for current staged diff.", file=sys.stderr)
+        return 1
+
+    commands = latest_entry.get("commands")
+    if commands is None:
+        print("commit-check failed: latest evidence has no commands. Fix and re-run reviewer.", file=sys.stderr)
+        return 1
+    for c in commands:
+        if c.get("exit_code") != 0:
+            print("commit-check failed: latest evidence has non-zero exit_code. Fix and re-run reviewer.", file=sys.stderr)
+            return 1
+
+    print("OK commit-check")
+    return 0
+
+
 def main() -> int:
     root = repo_root()
     parser = argparse.ArgumentParser(prog="wf", description="Workflow CLI (reviewer evidence).")
@@ -246,6 +292,8 @@ def main() -> int:
     rev.set_defaults(func=reviewer)
     route_p = subparsers.add_parser("route", help="Print target (cursor/gpt/new_chat), reason, and prompt as JSON.")
     route_p.set_defaults(func=route)
+    cc = subparsers.add_parser("commit-check", help="Verify latest evidence matches staged diff; required before commit.")
+    cc.set_defaults(func=commit_check)
     args = parser.parse_args()
     return args.func(args, root)
 
