@@ -39,6 +39,14 @@ python scripts/wf.py reviewer --cmd "python -m py_compile src/..."
 
 Appends one evidence entry per run to `workflow/EVIDENCE.jsonl` using staged diff only (B6). Use multiple `--cmd "..."` to run several checks; each command's exit code and last 20 lines of output are recorded.
 
+To get a suggested target and prompt (cursor vs gpt) from current workflow state and staged diff:
+
+```bash
+python scripts/wf.py route
+```
+
+Prints one JSON object with `target`, `reason`, and `prompt`.
+
 ## Core Loop
 
 
