@@ -7,6 +7,10 @@ Checklist before committing changes:
 - TASK_QUEUE.md reflects what is actually being worked on
 - DECISIONS_LOG.md updated if architectural decisions were made
 
+## Evidence logging (required)
+* Append one evidence entry to workflow/EVIDENCE.jsonl per reviewer run.
+* Do not commit if the latest evidence entry has any non-zero exit_code or if evidence was not appended.
+
 1. Run:
    git status
 

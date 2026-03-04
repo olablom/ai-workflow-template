@@ -14,6 +14,7 @@ A: planner → implementer → reviewer → memory
 S: anchor stable, delta active
 D: see DECISIONS_LOG
 R: context window limits
+RUN_ID: <run_id>
 
 ---
 
