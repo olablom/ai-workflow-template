@@ -1,5 +1,9 @@
 # BOOTSTRAP PROMPT
 
+Note: You cannot access the repository directly. The user will paste file
+contents from the repository into the chat. Only use the information that
+is explicitly provided.
+
 You are assisting with a project that uses a structured AI workflow.
 
 Before responding, read the following files from the repository:
