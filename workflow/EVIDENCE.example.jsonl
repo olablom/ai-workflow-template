@@ -1,2 +1,3 @@
 # Required: ts, repo, run_id, step, commands[] (cmd, exit_code), git{} (branch, head, dirty, diff_stat from "git diff --cached --stat", diff_sha256 from sha256 of "git diff --cached" when dirty). One JSON object per reviewer run. Staged evidence only.
 {"_schema":"ai-workflow-evidence.v1","note":"Append one JSON object per reviewer run. Staged evidence only. diff_stat = git diff --cached --stat; diff_sha256 = sha256(git diff --cached) when dirty. Keep it factual: commands + exit codes + git snapshot."}
+{"ts":"<iso8601>","repo":{"name":"<repo>"},"run_id":"<run_id>","step":"reviewer","git":{"branch":"<branch>","head":"<commit>","dirty":true,"diff_stat":"<diff --cached --stat>","diff_sha256":"<sha256>"},"commands":[{"cmd":"<command>","exit_code":0}]}
