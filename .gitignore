@@ -1,3 +1,10 @@
 .DS_Store
 .vscode
 *.log
+
+# Python
+__pycache__/
+*.pyc
+
+# Local evidence log
+workflow/EVIDENCE.jsonl

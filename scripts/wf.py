@@ -13,13 +13,16 @@ from datetime import datetime
 from pathlib import Path
 
 ROUTE_TARGETS = frozenset({"cursor", "gpt", "new_chat"})
+ROUTE_MODES = frozenset({"plan", "review", "resume", "commit"})
 
 
 def validate_route_output(obj: dict) -> bool:
-    """Validate route output schema: target, reason (list of str), prompt (str)."""
+    """Validate route output schema: target, mode, reason (list of str), prompt (str)."""
     if not isinstance(obj, dict):
         return False
     if obj.get("target") not in ROUTE_TARGETS:
+        return False
+    if obj.get("mode") not in ROUTE_MODES:
         return False
     reason = obj.get("reason")
     if not isinstance(reason, list) or not all(isinstance(r, str) for r in reason):
@@ -59,6 +62,9 @@ def get_run_id(root: Path, from_cli: str | None) -> str:
 
 
 def reviewer(args: argparse.Namespace, root: Path) -> int:
+    if not args.cmd:
+        print("reviewer requires at least one --cmd. Run: python scripts/wf.py reviewer --cmd \"<your check>\"", file=sys.stderr)
+        return 1
     run_id = get_run_id(root, args.run_id)
 
     # Git snapshot (staged only)
@@ -199,7 +205,7 @@ def _task_queue_active_contains(root: Path, *words: str) -> bool:
 
 
 def route(_args: argparse.Namespace, root: Path) -> int:
-    """Determine target (cursor/gpt/new_chat), reason, and prompt. Print single JSON to stdout."""
+    """Determine target, mode, reason, prompt. ABI: {target, mode, reason, prompt}. Modes: resume, review, commit, plan."""
     run_id = _read_run_id_optional(root)
     diff_cached = run_git(["diff", "--cached"], root, text=False)
     has_staged = len((diff_cached.stdout or b"").strip()) > 0
@@ -211,27 +217,37 @@ def route(_args: argparse.Namespace, root: Path) -> int:
     task_queue_text = task_queue_path.read_text(encoding="utf-8") if task_queue_path.exists() else ""
 
     target: str
+    mode: str
     reason: list[str]
     prompt: str
 
     if _has_placeholders(state_text) or _has_placeholders(task_queue_text):
         target = "cursor"
+        mode = "resume"
         reason = ["STATE or TASK_QUEUE contains placeholders.", "Run bootstrap or fill placeholders before continuing."]
         prompt = "Run bootstrap or fill placeholders: ensure workflow/STATE.md, workflow/SESSION_HEADER.md, and workflow/TASK_QUEUE.md have no <...> placeholders. Use scripts/bootstrap.py --project \"Your Project Name\" if this is a new repo from template."
     elif has_staged and (run_id is None or last_evidence_run_id != run_id):
         target = "gpt"
+        mode = "review"
         reason = ["Staged diff exists but no evidence entry for current RUN_ID.", "Reviewer step and evidence append required before commit."]
-        prompt = "Perform the reviewer steps: (1) Review the staged diff (git diff --cached). (2) Run verification commands (e.g. tests/lint). (3) Append one evidence entry to workflow/EVIDENCE.jsonl using: python scripts/wf.py reviewer --cmd \"<your check>\" (or set RUN_ID in workflow/SESSION_HEADER.md first). Do not commit until evidence is appended and all commands exit 0."
+        prompt = "Perform the reviewer steps: (1) Review the staged diff (git diff --cached). (2) Run verification commands (e.g. tests/lint). (3) Append one evidence entry using: python scripts/wf.py reviewer --cmd \"<your check>\" (or set RUN_ID in workflow/SESSION_HEADER.md first). Do not commit until evidence is appended and all commands exit 0."
+    elif has_staged and run_id is not None and last_evidence_run_id == run_id:
+        target = "cursor"
+        mode = "commit"
+        reason = ["Staged diff has matching evidence for current RUN_ID.", "Next step is to commit."]
+        prompt = "Commit the staged changes. Pre-commit will run commit-check; ensure you have run reviewer with at least one --cmd and all commands passed."
     elif _task_queue_active_contains(root, "implement", "refactor", "fix"):
         target = "cursor"
+        mode = "plan"
         reason = ["ACTIVE task implies implementation work.", "Cursor should apply code/repo changes."]
         prompt = "Implement the current ACTIVE task from workflow/TASK_QUEUE.md. Apply minimal diffs; only touch files needed for the task. Then update TASK_QUEUE (move to DONE if done) and STATE if milestone/task changed."
     else:
         target = "gpt"
+        mode = "plan"
         reason = ["No staged-diff gap or implementation task detected.", "Propose next step and update workflow state as needed."]
         prompt = "Propose the next step for this project. Read workflow/STATE.md and workflow/TASK_QUEUE.md. Suggest one concrete action (design, task, or implementation). If the next step is implementation, add it to ACTIVE in TASK_QUEUE and summarize for Cursor."
 
-    out = {"target": target, "reason": reason, "prompt": prompt}
+    out = {"target": target, "mode": mode, "reason": reason, "prompt": prompt}
     if not validate_route_output(out):
         print("route output schema validation failed", file=sys.stderr)
         return 1
@@ -269,8 +285,8 @@ def commit_check(_args: argparse.Namespace, root: Path) -> int:
         return 1
 
     commands = latest_entry.get("commands")
-    if commands is None:
-        print("commit-check failed: latest evidence has no commands. Fix and re-run reviewer.", file=sys.stderr)
+    if not commands:
+        print("commit-check failed: latest evidence has no verification commands. Run reviewer with at least one --cmd.", file=sys.stderr)
         return 1
     for c in commands:
         if c.get("exit_code") != 0:
