@@ -2,7 +2,9 @@
 """
 Read-only UX wrapper: runs wf route and prints a copy/paste-ready WF NEXT instruction block.
 Does not run reviewer, modify repo state, commit, or call AI tools. Stdlib only.
+Optional: --advice local runs a local LLM sidecar (advice-only) after rendering.
 """
+import argparse
 import json
 import subprocess
 import sys
@@ -15,6 +17,11 @@ def repo_root() -> Path:
 
 def main() -> int:
     root = repo_root()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--advice", choices=["local"], help="Run local LLM sidecar after WF NEXT (advice-only).")
+    parser.add_argument("--model", metavar="NAME", help="Ollama model for sidecar (e.g. llama3.1:8b).")
+    args = parser.parse_args()
+
     wf_script = root / "scripts" / "wf.py"
     proc = subprocess.run(
         [sys.executable, str(wf_script), "route"],
@@ -27,7 +34,8 @@ def main() -> int:
         return 1
 
     try:
-        obj = json.loads(proc.stdout.strip())
+        route_json_raw = proc.stdout.strip()
+        obj = json.loads(route_json_raw)
     except (json.JSONDecodeError, TypeError) as e:
         print(f"Invalid JSON from wf route: {e}", file=sys.stderr)
         return 1
@@ -55,17 +63,28 @@ def main() -> int:
     if target in ("gpt", "new_chat"):
         print("copy/paste:\n")
         print(prompt)
-        return 0
+    else:
+        print("WF NEXT\n")
+        print(f"target: {target}")
+        print(f"mode:   {mode}\n")
+        print("reason:")
+        for r in reason:
+            print(f"- {r}")
+        print("\ncopy/paste:\n")
+        print("/plan\n")
+        print(prompt)
 
-    print("WF NEXT\n")
-    print(f"target: {target}")
-    print(f"mode:   {mode}\n")
-    print("reason:")
-    for r in reason:
-        print(f"- {r}")
-    print("\ncopy/paste:\n")
-    print("/plan\n")
-    print(prompt)
+    if args.advice == "local":
+        sidecar_cmd = [sys.executable, str(root / "scripts" / "sidecar_llm.py"), "--route-json", route_json_raw]
+        if args.model:
+            sidecar_cmd.extend(["--model", args.model])
+        sc = subprocess.run(sidecar_cmd, cwd=root, capture_output=True, text=True, encoding="utf-8")
+        if sc.returncode != 0:
+            print(sc.stderr or "sidecar failed", file=sys.stderr)
+            return sc.returncode
+        if sc.stdout.strip():
+            print("--- ADVICE (local LLM, non-authoritative) ---", file=sys.stderr)
+            print(sc.stdout.strip(), file=sys.stderr)
     return 0
 
 
