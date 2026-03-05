@@ -1,5 +1,7 @@
 # AI Workflow Template
 
+Deterministic control layer for AI-assisted development.
+
 ## Overview
 
 This repository is a **template for deterministic AI-assisted development**.
