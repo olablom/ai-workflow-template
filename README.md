@@ -21,13 +21,19 @@ Use it when you want to combine ChatGPT (reasoning, design, review) and Cursor (
 
 **Evidence logging** (append-only; binds commits to verification):
 
-- **workflow/EVIDENCE.jsonl** — One JSON object per reviewer run: git snapshot (branch, head, dirty, diff_stat, diff_sha256 when dirty) and commands (cmd, exit_code, optional stdout_tail). Commit-check compares the **last valid entry** to the current staged diff.
+- **workflow/EVIDENCE.jsonl** — One JSON object per reviewer run: git snapshot (branch, head, dirty, diff_stat, diff_sha256 when dirty) and commands (cmd, exit_code, optional stdout_tail). Commit-check compares the **last valid entry** to the current staged diff. This file is generated locally (not committed); see **workflow/EVIDENCE.example.jsonl** for schema and format.
 
 **CLI tooling** (stdlib-only; no extra deps):
 
 - **scripts/wf.py reviewer** — Run verification commands (e.g. tests, lint), record their exit codes, and append one evidence entry for the **staged** diff (B6). **Requires at least one `--cmd`** (no empty-commands evidence). Requires RUN_ID (in SESSION_HEADER or `--run-id`).
 - **scripts/wf.py route** — Print one JSON: `target`, `mode` (plan | review | resume | commit), `reason`, `prompt`. ABI is stable. Uses only workflow files and `git diff --cached`; deterministic.
 - **scripts/wf.py commit-check** — If there is staged diff, require the latest evidence entry to have `git.dirty=true`, matching `diff_sha256`, **non-empty `commands`**, and all `commands[].exit_code == 0`. **Rejects evidence with zero verification commands.** If no staged diff, pass. Used by the pre-commit hook.
+
+**UX wrapper (read-only; does not change workflow logic):**
+
+- **scripts/conductor.py** — Runs `wf route`, parses the JSON, and prints a copy/paste-ready instruction block (WF NEXT or prompt). Packet goes to stdout. Optional `--advice local` runs a local LLM sidecar after rendering; advice is printed to **stderr** (so `conductor.py --advice local > packet.txt` keeps the packet clean). Optional `--model <name>` forwards to the sidecar (e.g. `llama3.1:8b`). Example: `python scripts/conductor.py` or `python scripts/conductor.py --advice local --model llama3.1:8b`.
+- **scripts/sidecar_llm.py** — Advice-only local LLM: reads STATE, TASK_QUEUE, staged diff (and optional route JSON), calls Ollama, prints or writes advice. **Outside the truth chain**: does not affect reviewer or commit-check. Optional `--write-advice` writes to `workflow/ADVICE.md` (that file is in .gitignore). Used by conductor when `--advice local` is set.
+- **wf-next.cmd** / **wf-next.sh** — Convenience launchers: run `python scripts/conductor.py` from repo root (Windows and POSIX).
 
 **Commit gate:**
 
@@ -115,7 +121,7 @@ If you had run `git add` again after step 3 (changing staged diff), commit would
 
 .
 ├── workflow/          # State, evidence, session helpers
-├── scripts/           # wf.py, bootstrap.py, install-hooks.py
+├── scripts/           # wf.py, conductor.py, sidecar_llm.py, bootstrap.py, install-hooks.py
 ├── .githooks/         # pre-commit (calls wf commit-check)
 ├── artifacts/
 ├── src/

@@ -9,7 +9,7 @@ Checklist of locked decisions. Change only by explicit decision record.
 - [ ] **5) Evidence minimum contract** — Per entry: required ts, repo, run_id, step; git.branch, git.head, git.dirty, git.diff_stat; commands[] with cmd+exit_code. git.diff_sha256 required iff git.dirty=true. stdout_tail optional. Commit-check fails if staged diff exists but diff_sha256 missing/mismatch OR any exit_code != 0.
 - [ ] **6) Decision-adapter (future)** — Returns JSON `{ "action":"CURSOR_DEBUG", "confidence":0.77, "reason":["..."], "do":["..."] }`.
 - [ ] **7) Hooks** — Version under .githooks/ + installer script that runs: `git config core.hooksPath .githooks`.
-- [ ] **8) Source of truth** — wf route decides action; GPT/local LLM are advisory only.
+- [ ] **8) Source of truth** — wf route decides action; GPT/local LLM are advisory only. The local LLM sidecar (scripts/sidecar_llm.py) is advisory-only and outside the truth chain; it does not affect reviewer or commit-check.
 
 ## Operational loop
 
