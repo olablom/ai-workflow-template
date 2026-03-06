@@ -1,10 +1,10 @@
 # TASK QUEUE
 
 ACTIVE
-- <active task>
+- Remove placeholders and complete first verified commit loop
 
 NEXT
-- <next task>
+-
 
 DONE
 - initialize workflow template

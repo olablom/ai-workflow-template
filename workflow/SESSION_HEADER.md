@@ -9,12 +9,12 @@ Respect invariants.
 
 STATE
 
-P: <project>
+P: M4 Template Bootstrap Validation
 A: planner → implementer → reviewer → memory
 S: anchor stable, delta active
 D: see DECISIONS_LOG
 R: context window limits
-RUN_ID: <run_id>
+RUN_ID: m4
 
 ---
 
@@ -28,13 +28,13 @@ ask if context missing
 
 CURRENT TASK
 
-<describe current action>
+Remove placeholders and complete first verified commit loop
 
 ---
 
 SESSION OBJECTIVE
 
-<desired outcome>
+Verify conductor routing without placeholders and pass commit-check
 
 ---
 
