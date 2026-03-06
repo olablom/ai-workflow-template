@@ -7,6 +7,20 @@
 
 Deterministic control layer for AI-assisted development.
 
+## First run
+
+Hooks are **not active** until you run the installer. Do this once per clone:
+
+1. **Install hooks:** `python scripts/install-hooks.py` (sets `core.hooksPath=.githooks`)
+2. **Get next step:** `python scripts/conductor.py`
+3. After making a change, stage it, then run reviewer and commit:
+   ```bash
+   git add -A
+   python scripts/wf.py reviewer --run-id <your-id> --cmd "python scripts/conductor.py"
+   git commit -m "your message"
+   ```
+   Pre-commit runs `commit-check`; it passes only if the staged diff matches the latest reviewer evidence.
+
 ## Overview
 
 This repository is a **template for deterministic AI-assisted development**.

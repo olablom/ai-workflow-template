@@ -22,6 +22,17 @@ def main() -> int:
     parser.add_argument("--model", metavar="NAME", help="Ollama model for sidecar (e.g. llama3.1:8b).")
     args = parser.parse_args()
 
+    # UX warning only: hooks not installed (do not fail, do not affect stdout)
+    hooks_proc = subprocess.run(
+        ["git", "config", "--get", "core.hooksPath"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+    )
+    hooks_path = (hooks_proc.stdout or "").strip() if hooks_proc.returncode == 0 else ""
+    if hooks_path != ".githooks":
+        print("Hooks not installed (core.hooksPath != .githooks). Run: python scripts/install-hooks.py", file=sys.stderr)
+
     wf_script = root / "scripts" / "wf.py"
     proc = subprocess.run(
         [sys.executable, str(wf_script), "route"],
