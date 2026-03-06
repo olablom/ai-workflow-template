@@ -5,10 +5,10 @@ One file for current project state. Keep this updated; other workflow files refe
 ---
 
 PROJECT
-M4 Template Bootstrap Validation
+New Project
 
 MILESTONE
-M4 bootstrap validation
+Bootstrap
 
 ARCHITECTURE
 planner → implementer → reviewer → memory
@@ -28,14 +28,14 @@ iteration drift
 architecture drift
 
 CURRENT TASK
-Remove placeholders and complete first verified commit loop
+Initialize workflow and run reviewer
 
 STABLE_REF
 dd28deb10232964992172a5e5749c69098bada49
-Last known-good baseline commit. For rollback: git checkout STABLE_REF (or create a branch from it).
+Last known-good baseline ref: set after your first stable tag/commit.
 
 SESSION OBJECTIVE
-Verify conductor routing without placeholders and pass commit-check
+First verified commit
 
 ---
 
